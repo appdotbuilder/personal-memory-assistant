@@ -7,21 +7,20 @@ import { z } from 'zod';
 
 // Import schemas
 import {
-  createMemoryInputSchema,
-  updateMemoryInputSchema,
-  queryMemoriesInputSchema,
-  markStaleInputSchema,
-  deleteMemoryInputSchema
+  createUserInputSchema,
+  createOrUpdateMemoryInputSchema,
+  searchMemoriesInputSchema,
+  deleteMemoryInputSchema,
+  flagMemoryAsStaleInputSchema
 } from './schema';
 
 // Import handlers
-import { createMemory } from './handlers/create_memory';
-import { getMemories } from './handlers/get_memories';
-import { getMemoryById } from './handlers/get_memory_by_id';
-import { updateMemory } from './handlers/update_memory';
+import { createUser } from './handlers/create_user';
+import { createOrUpdateMemory } from './handlers/create_or_update_memory';
+import { searchMemories } from './handlers/search_memories';
 import { deleteMemory } from './handlers/delete_memory';
-import { markMemoryStale } from './handlers/mark_memory_stale';
-import { searchMemoriesBySimilarity } from './handlers/search_memories_by_similarity';
+import { flagMemoryAsStale } from './handlers/flag_memory_as_stale';
+import { getUserMemories } from './handlers/get_user_memories';
 
 const t = initTRPC.create({
   transformer: superjson,
@@ -36,46 +35,33 @@ const appRouter = router({
     return { status: 'ok', timestamp: new Date().toISOString() };
   }),
 
-  // Create a new memory
-  createMemory: publicProcedure
-    .input(createMemoryInputSchema)
-    .mutation(({ input }) => createMemory(input)),
+  // User management
+  createUser: publicProcedure
+    .input(createUserInputSchema)
+    .mutation(({ input }) => createUser(input)),
 
-  // Get memories with advanced filtering and search
-  getMemories: publicProcedure
-    .input(queryMemoriesInputSchema)
-    .query(({ input }) => getMemories(input)),
+  // Memory curation (write operations)
+  createOrUpdateMemory: publicProcedure
+    .input(createOrUpdateMemoryInputSchema)
+    .mutation(({ input }) => createOrUpdateMemory(input)),
 
-  // Get a single memory by ID
-  getMemoryById: publicProcedure
-    .input(z.object({ id: z.string().uuid() }))
-    .query(({ input }) => getMemoryById(input.id)),
+  // Memory retrieval (read operations)
+  searchMemories: publicProcedure
+    .input(searchMemoriesInputSchema)
+    .query(({ input }) => searchMemories(input)),
 
-  // Update an existing memory
-  updateMemory: publicProcedure
-    .input(updateMemoryInputSchema)
-    .mutation(({ input }) => updateMemory(input)),
+  getUserMemories: publicProcedure
+    .input(z.object({ userId: z.string().uuid() }))
+    .query(({ input }) => getUserMemories(input.userId)),
 
-  // Delete a memory permanently
+  // Memory management operations
   deleteMemory: publicProcedure
     .input(deleteMemoryInputSchema)
     .mutation(({ input }) => deleteMemory(input)),
 
-  // Mark a memory as stale (soft delete)
-  markMemoryStale: publicProcedure
-    .input(markStaleInputSchema)
-    .mutation(({ input }) => markMemoryStale(input)),
-
-  // Semantic similarity search
-  searchMemoriesBySimilarity: publicProcedure
-    .input(z.object({
-      user_id: z.string().uuid(),
-      embedding: z.array(z.number()).length(1536),
-      memory_type: z.enum(['episodic', 'semantic', 'emotional', 'procedural', 'value-principle']).optional(),
-      limit: z.number().int().positive().optional().default(10),
-      similarity_threshold: z.number().min(0).max(1).optional().default(0.7)
-    }))
-    .query(({ input }) => searchMemoriesBySimilarity(input)),
+  flagMemoryAsStale: publicProcedure
+    .input(flagMemoryAsStaleInputSchema)
+    .mutation(({ input }) => flagMemoryAsStale(input)),
 });
 
 export type AppRouter = typeof appRouter;
@@ -92,15 +78,7 @@ async function start() {
     },
   });
   server.listen(port);
-  console.log(`Personal Assistant Memory System TRPC server listening at port: ${port}`);
-  console.log('Available endpoints:');
-  console.log('  - POST /createMemory - Create a new memory');
-  console.log('  - GET /getMemories - Query memories with filters');
-  console.log('  - GET /getMemoryById - Get a single memory by ID');
-  console.log('  - POST /updateMemory - Update an existing memory');
-  console.log('  - POST /deleteMemory - Delete a memory permanently');
-  console.log('  - POST /markMemoryStale - Mark a memory as stale');
-  console.log('  - GET /searchMemoriesBySimilarity - Semantic similarity search');
+  console.log(`TRPC server listening at port: ${port}`);
 }
 
 start();

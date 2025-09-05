@@ -1,71 +1,101 @@
 import { z } from 'zod';
 
-// Memory type enum
-export const memoryTypeEnum = z.enum(['episodic', 'semantic', 'emotional', 'procedural', 'value-principle']);
-export type MemoryType = z.infer<typeof memoryTypeEnum>;
+// Memory types enum schema
+export const memoryTypeSchema = z.enum([
+  'episodic',
+  'semantic',
+  'emotional',
+  'procedural',
+  'value-principle'
+]);
+export type MemoryType = z.infer<typeof memoryTypeSchema>;
+
+// Confidence score enum schema
+export const confidenceScoreSchema = z.enum(['high', 'medium', 'low']);
+export type ConfidenceScore = z.infer<typeof confidenceScoreSchema>;
+
+// Revision history entry schema
+export const revisionHistoryEntrySchema = z.object({
+  timestamp: z.string(),
+  oldSummary: z.string(),
+  newSummary: z.string()
+});
+export type RevisionHistoryEntry = z.infer<typeof revisionHistoryEntrySchema>;
+
+// Details JSONB schema for memory metadata
+export const memoryDetailsSchema = z.object({
+  keywords: z.array(z.string()).optional(),
+  dates: z.array(z.string()).optional(),
+  confidenceScore: confidenceScoreSchema.optional(),
+  emotionTags: z.array(z.string()).optional(),
+  revisionHistory: z.array(revisionHistoryEntrySchema).optional(),
+  sourceHash: z.string().optional(),
+  isStale: z.boolean().optional()
+}).optional();
+export type MemoryDetails = z.infer<typeof memoryDetailsSchema>;
+
+// User schema
+export const userSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  created_at: z.coerce.date()
+});
+export type User = z.infer<typeof userSchema>;
 
 // Memory schema
 export const memorySchema = z.object({
   id: z.string().uuid(),
-  user_id: z.string().uuid(),
-  embedding: z.array(z.number()).length(1536), // Vector embedding as number array
-  memory_type: memoryTypeEnum,
+  userId: z.string().uuid(),
+  embedding: z.string(), // Vector embedding as string
+  memoryType: memoryTypeSchema,
   summary: z.string(),
-  full_text: z.string(),
-  details: z.record(z.any()).nullable(), // JSONB field for flexible metadata
+  fullText: z.string(),
+  details: memoryDetailsSchema,
   created_at: z.coerce.date(),
-  updated_at: z.coerce.date(),
+  updated_at: z.coerce.date()
 });
-
 export type Memory = z.infer<typeof memorySchema>;
 
-// Input schema for creating memories
-export const createMemoryInputSchema = z.object({
-  user_id: z.string().uuid(),
-  embedding: z.array(z.number()).length(1536),
-  memory_type: memoryTypeEnum,
-  summary: z.string().min(1, 'Summary cannot be empty'),
-  full_text: z.string().min(1, 'Full text cannot be empty'),
-  details: z.record(z.any()).nullable().optional(), // Optional for creation
+// Input schema for creating users
+export const createUserInputSchema = z.object({
+  name: z.string().min(1, 'Name is required')
 });
+export type CreateUserInput = z.infer<typeof createUserInputSchema>;
 
-export type CreateMemoryInput = z.infer<typeof createMemoryInputSchema>;
-
-// Input schema for updating memories
-export const updateMemoryInputSchema = z.object({
-  id: z.string().uuid(),
-  embedding: z.array(z.number()).length(1536).optional(),
-  memory_type: memoryTypeEnum.optional(),
-  summary: z.string().min(1).optional(),
-  full_text: z.string().min(1).optional(),
-  details: z.record(z.any()).nullable().optional(),
+// Input schema for creating/updating memories
+export const createOrUpdateMemoryInputSchema = z.object({
+  userId: z.string().uuid(),
+  embedding: z.string(),
+  memoryType: memoryTypeSchema,
+  summary: z.string().min(1, 'Summary is required'),
+  fullText: z.string().min(1, 'Full text is required'),
+  details: memoryDetailsSchema
 });
+export type CreateOrUpdateMemoryInput = z.infer<typeof createOrUpdateMemoryInputSchema>;
 
-export type UpdateMemoryInput = z.infer<typeof updateMemoryInputSchema>;
+// Search options schema for memory retrieval
+export const searchOptionsSchema = z.object({
+  memoryType: memoryTypeSchema.optional(),
+  emotionTags: z.array(z.string()).optional(),
+  limit: z.number().int().positive().max(100).default(10)
+}).optional();
+export type SearchOptions = z.infer<typeof searchOptionsSchema>;
 
-// Query schema for memory search with filters
-export const queryMemoriesInputSchema = z.object({
-  user_id: z.string().uuid(),
-  memory_type: memoryTypeEnum.optional(),
-  embedding: z.array(z.number()).length(1536).optional(), // For semantic search
-  limit: z.number().int().positive().optional().default(20),
-  offset: z.number().int().nonnegative().optional().default(0),
-  details_filter: z.record(z.any()).optional(), // Filter by details fields
+// Search memories input schema
+export const searchMemoriesInputSchema = z.object({
+  query: z.string().min(1, 'Query is required'),
+  options: searchOptionsSchema
 });
-
-export type QueryMemoriesInput = z.infer<typeof queryMemoriesInputSchema>;
-
-// Schema for marking memories as stale
-export const markStaleInputSchema = z.object({
-  id: z.string().uuid(),
-  stale: z.boolean().default(true),
-});
-
-export type MarkStaleInput = z.infer<typeof markStaleInputSchema>;
+export type SearchMemoriesInput = z.infer<typeof searchMemoriesInputSchema>;
 
 // Delete memory input schema
 export const deleteMemoryInputSchema = z.object({
-  id: z.string().uuid(),
+  memoryId: z.string().uuid()
 });
-
 export type DeleteMemoryInput = z.infer<typeof deleteMemoryInputSchema>;
+
+// Flag memory as stale input schema
+export const flagMemoryAsStaleInputSchema = z.object({
+  memoryId: z.string().uuid()
+});
+export type FlagMemoryAsStaleInput = z.infer<typeof flagMemoryAsStaleInputSchema>;
